@@ -34,3 +34,4 @@ ggplot(data, aes(x=Date,y=`Sales(Kg)`)) +
     method = "loess"
   )
 
+
