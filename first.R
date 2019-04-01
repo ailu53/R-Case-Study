@@ -33,5 +33,5 @@ ggplot(data, aes(x=Date,y=`Sales(Kg)`)) +
     color = "#FC4E07", fill = "#FC4E07",
     method = "loess"
   )
-#Everything perfect
+
 
