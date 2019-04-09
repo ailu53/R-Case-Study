@@ -51,41 +51,80 @@ ggplot(data, aes(x=Date,y=Sales.Kg.)) +
     method = "loess"
   )
 
+#cleaning the data by using "tsclean".
 count_ts = ts(data[, c('Sales.Kg.')])
 data$clean_sales = tsclean(count_ts)
 
+#Plotting after cleaning the data 
 ggplot() +
   geom_line(data =data, aes(x = Date, y = clean_sales)) + ylab('Sales')
+#we can observe that outliers are no more in our data.
 
-
-data$sales_ma = ma(data$clean_sales, order=7) # using the clean count with no outliers
+#Calculating the weekly and monthly moving average to smoother the original series
+data$sales_ma = ma(data$clean_sales, order=7) # using the clean sales with no outliers
 data$sales_ma30 = ma(data$clean_sales, order=30)
 
+#plotting with both weekly and monthly moving averages.
 ggplot() +
   geom_line(data = data, aes(x = Date, y = clean_sales, colour = "counts")) +
   geom_line(data = data, aes(x = Date, y = sales_ma,   colour = "Weekly Moving Average"))  +
   geom_line(data = data, aes(x = Date, y = sales_ma30, colour = "Monthly Moving Average"))  +
   ylab('Bicycle Count')
+#Here we can observe that weekly moving average seems more smoother.
 
-
+#Deleting if there is any Na values
 sales_ma = ts(na.omit(data$sales_ma), frequency=30)
-decomp = stl(sales_ma, s.window="periodic")
+decomp = stl(sales_ma, s.window="periodic")#decomposing the data by using stl command to calculate the seasonal component.
 deseasonal_sales <- seasadj(decomp)
 plot(decomp)
 
+#Statistical test to check for stationary
 adf.test(sales_ma, alternative = "stationary")
+#still we have to deseasonal as per the results
 
-
+#plotting ACF and PACF
 Acf(sales_ma, main='')
-
 Pacf(sales_ma, main='')
+#still we have to deseasonal as per the results
 
+#Further differencing to deseasonal bu 1
 sales_d1 = diff(deseasonal_sales, differences = 1)
 plot(sales_d1)
 adf.test(sales_d1, alternative = "stationary")
-
+#plottng ACF and PACF
 Acf(sales_d1, main='')
-
 Pacf(sales_d1, main='')
+#
 
+#building ARIMA model
+auto.arima(deseasonal_sales, seasonal=FALSE)
+fit<-auto.arima(deseasonal_sales, seasonal=FALSE)
+tsdisplay(residuals(fit), lag.max=45, main='(1,1,4) Model Residuals')
 
+#model with appropriate p,d,q values.
+fit2 = arima(deseasonal_sales, order=c(1,1,7))
+tsdisplay(residuals(fit2), lag.max=15, main='Seasonal Model Residuals')
+
+#forecasting for future (40 days ahead)
+fcast <- forecast(fit2, h=40)
+plot(fcast)
+
+#to check the accuracy of our model by fixing the timewindow of 40 days.
+hold <- window(ts(deseasonal_sales), start=(nrow(data)-40))
+
+#fitting the model with time window.
+fit_no_holdout = arima(ts(deseasonal_sales[-c(922:962)]), order=c(1,1,7))
+
+#forecasting 
+fcast_no_holdout <- forecast(fit_no_holdout,h=40)
+plot(fcast_no_holdout, main=" ")#predicted values
+lines(ts(deseasonal_sales))#ploting actual values
+
+#fitting ARIMA model with seasonality.
+fit_w_seasonality = auto.arima(deseasonal_sales, seasonal=TRUE)
+summary(fit_w_seasonality)
+
+#Forecasting with seasonality
+seas_fcast <- forecast(fit_w_seasonality, h=40)
+plot(seas_fcast)
+summary(seas_fcast)
