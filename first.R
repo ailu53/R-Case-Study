@@ -54,12 +54,12 @@ ggplot(data, aes(x=Date,y=Sales.Kg.)) +
 #cleaning the data by using "tsclean".
 count_ts = ts(data[, c('Sales.Kg.')])
 data$clean_sales = tsclean(count_ts)
-
+str(count_ts)
 #Plotting after cleaning the data 
 ggplot() +
   geom_line(data =data, aes(x = Date, y = clean_sales)) + ylab('Sales')
 #we can observe that outliers are no more in our data.
-
+cycle(count_ts)
 #Calculating the weekly and monthly moving average to smoother the original series
 data$sales_ma = ma(data$clean_sales, order=7) # using the clean sales with no outliers
 data$sales_ma30 = ma(data$clean_sales, order=30)
@@ -97,28 +97,28 @@ Pacf(sales_d1, main='')
 #
 
 #building ARIMA model
-auto.arima(deseasonal_sales, seasonal=FALSE)
-fit<-auto.arima(deseasonal_sales, seasonal=FALSE)
-tsdisplay(residuals(fit), lag.max=45, main='(1,1,4) Model Residuals')
+auto.arima(sales_d1, seasonal=FALSE)
+fit<-auto.arima(sales_d1, seasonal=FALSE)
+tsdisplay(residuals(fit), lag.max=45, main='(1,0,4) Model Residuals')
 
 #model with appropriate p,d,q values.
-fit2 = arima(deseasonal_sales, order=c(1,1,7))
+fit2 = arima(sales_d1, order=c(1,0,4))
 tsdisplay(residuals(fit2), lag.max=15, main='Seasonal Model Residuals')
 
 #forecasting for future (40 days ahead)
 fcast <- forecast(fit2, h=40)
 plot(fcast)
-
+summary(fit)
 #to check the accuracy of our model by fixing the timewindow of 40 days.
-hold <- window(ts(deseasonal_sales), start=(nrow(data)-40))
+hold <- window(ts(sales_d1), start=(nrow(data)-40))
 
 #fitting the model with time window.
-fit_no_holdout = arima(ts(deseasonal_sales[-c(922:962)]), order=c(1,1,7))
+fit_no_holdout = arima(ts(sales_d1[-c(922:962)]), order=c(1,1,7))
 
 #forecasting 
 fcast_no_holdout <- forecast(fit_no_holdout,h=40)
 plot(fcast_no_holdout, main=" ")#predicted values
-lines(ts(deseasonal_sales))#ploting actual values
+lines(ts(sales_d1))#ploting actual values
 
 #fitting ARIMA model with seasonality.
 fit_w_seasonality = auto.arima(deseasonal_sales, seasonal=TRUE)
@@ -128,3 +128,26 @@ summary(fit_w_seasonality)
 seas_fcast <- forecast(fit_w_seasonality, h=40)
 plot(seas_fcast)
 summary(seas_fcast)
+#residuals plotting
+hist(residuals(fit_w_seasonality))
+
+
+
+
+
+
+#creating requre variables for data visualization
+require(lubridate)# package to work with dates
+data$month<-months(data$Date)#extracting month
+data$day<-weekdays(data$Date)#extracting days
+data$week_weekend<- ifelse(data$day %in% c("Sunday","Saturday"),"Weekend","Weekday")#separating weekday and weekend.
+data$year<-year(data$Date)#extracting year
+
+data <- data %>% #renaming the sales variable
+  rename(sales_Kg=Sales.Kg.)
+
+#creating new data frame with reqired columns for further visualization.
+prod_sales<-data[,c("Date","IsPromo","sales_Kg","month","day","week_weekend","year")]
+
+write.csv(prod_sales,file="prod_sales.csv")
+getwd()
