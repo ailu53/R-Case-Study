@@ -1,6 +1,4 @@
 # time series
-# dataset : Monthly milk production: pounds 
-# per cow. Jan 62 - Dec 75
 
 library(forecast)
 library(tseries)
@@ -24,9 +22,9 @@ plot(dec)
 
 # subsetting data 
 
-mlTr <- window(ml, start=c(2016,1),end=c(2018,192))
+mlTr <- window(ml, start=c(2016,1),end=c(2018,192)) #Training data
               
-mlTst <- window(ml,start=c(2018,193),
+mlTst <- window(ml,start=c(2018,193),#testing for 40 days
                 end=c(2018,232))
 
 
@@ -37,17 +35,6 @@ dec$seasonal
 dec$trend
 dec$random
 dec$type # Type of seasonality
-
-
-decM <- decompose(mlTr, type = "multiplicative")
-decM$x # original series
-decM$type
-decM$seasonal
-decM$trend
-decM$random
-# ts = trend * seasonal * random 
-plot(decM)
-
 
 # Exponential smoothing
 es = ses(mlTr,h=40) # h - number of periods for forecasting

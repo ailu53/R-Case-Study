@@ -19,10 +19,9 @@ ipak(packages)
 #Readin in the data
 data<-read.table(choose.files(),sep=",",header=T ,colClasses = c("character","numeric","character","character","character"))
 str(data)# Here we can observe that date variable is character
-
 #converting date column into date column
-data$Date<-as.Date(data$ï..Date,format="%d-%m-%Y")
-data$ï..Date<-NULL
+data$Date<-as.Date(data$Date,format="%d-%m-%Y")
+
 attach(data)# attaching data to make easy to call variables
 require(ggplot2)
 #Exploratory data analysis
@@ -52,7 +51,7 @@ ggplot(data, aes(x=Date,y=Sales.Kg.)) +
   )
 
 #cleaning the data by using "tsclean".
-count_ts = ts(data[, c('Sales.Kg.')])
+count_ts = ts(data[, c('Sales.Kg.')],start=c(2016,1),frequency = 365)
 data$clean_sales = tsclean(count_ts)
 str(count_ts)
 #Plotting after cleaning the data 
@@ -66,14 +65,14 @@ data$sales_ma30 = ma(data$clean_sales, order=30)
 
 #plotting with both weekly and monthly moving averages.
 ggplot() +
-  geom_line(data = data, aes(x = Date, y = clean_sales, colour = "counts")) +
+  geom_line(data = data, aes(x = Date, y = clean_sales, colour = "Sales")) +
   geom_line(data = data, aes(x = Date, y = sales_ma,   colour = "Weekly Moving Average"))  +
   geom_line(data = data, aes(x = Date, y = sales_ma30, colour = "Monthly Moving Average"))  +
-  ylab('Bicycle Count')
+  ylab('Sales')
 #Here we can observe that weekly moving average seems more smoother.
 
 #Deleting if there is any Na values
-sales_ma = ts(na.omit(data$sales_ma), frequency=30)
+sales_ma = ts(na.omit(data$sales_ma), frequency=365)
 decomp = stl(sales_ma, s.window="periodic")#decomposing the data by using stl command to calculate the seasonal component.
 deseasonal_sales <- seasadj(decomp)
 plot(decomp)
@@ -102,7 +101,7 @@ fit<-auto.arima(sales_d1, seasonal=FALSE)
 tsdisplay(residuals(fit), lag.max=45, main='(1,0,4) Model Residuals')
 
 #model with appropriate p,d,q values.
-fit2 = arima(sales_d1, order=c(1,0,4))
+fit2 = arima(sales_d1, order=c(3,0,5))
 tsdisplay(residuals(fit2), lag.max=15, main='Seasonal Model Residuals')
 
 #forecasting for future (40 days ahead)
@@ -131,11 +130,6 @@ summary(seas_fcast)
 #residuals plotting
 hist(residuals(fit_w_seasonality))
 
-
-
-
-
-
 #creating requre variables for data visualization
 require(lubridate)# package to work with dates
 data$month<-months(data$Date)#extracting month
@@ -151,3 +145,32 @@ prod_sales<-data[,c("Date","IsPromo","sales_Kg","month","day","week_weekend","ye
 
 write.csv(prod_sales,file="prod_sales.csv")
 getwd()
+
+
+#Modeling usind Prophet library (Facebook provided)
+#plotting to check the distribution of data
+qplot(Date,Sales.Kg.,data=data)# observed that the data is scatterd
+
+#Transforming the data by "log"
+ds<-data$Date
+data$Sales.Kg.<-ifelse(data$Sales.Kg. == 0,0.001,data$Sales.Kg.)
+y<-log(data$Sales.Kg.)
+df=data.frame(ds,y)
+qplot(ds,y,data=df)#can see some patterns though some sctter takes place
+
+#loading Prophet package
+library(prophet)
+#modeling
+m<-prophet(df,daily.seasonality = T)
+future<-make_future_dataframe(m,40)
+
+#Forecasting
+forecast<-predict(m,future)
+pred<-exp(forecast$yhat)
+
+#plotting the forecasted values and actual
+plot(m,forecast)
+
+#plotting to check for the trends (daily, weekly and yearly)
+prophet_plot_components(m,forecast)
+
